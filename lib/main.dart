@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:contacts_service/contacts_service.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(MyApp());
@@ -38,22 +41,36 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             ElevatedButton(
-                onPressed: () async {
-                  final contacts =
-                      await ContactsService.openDeviceContactPicker();
-                  final value = contacts?.phones?.map((e) => e.value).toList();
-                  setState(() {
-                    phoneNumber =
-                        contacts?.phones?.map((e) => e.value).toList() ??
-                            <String>[];
-                  });
-                  print(value ?? '');
-                },
-                child: Text('Get Phone Number')),
+                onPressed: _getPhoneNumber, child: Text('Get Phone Number')),
             ...phoneNumber.map((e) => Text(e ?? '')).toList()
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _getPhoneNumber() async {
+    if (Platform.isAndroid) {
+      final permission = await _getContactPermission();
+      if (!permission.isGranted) {
+        return;
+      }
+    }
+    final contacts = await ContactsService.openDeviceContactPicker();
+    setState(() {
+      phoneNumber =
+          contacts?.phones?.map((e) => e.value).toList() ?? <String>[];
+    });
+  }
+
+  Future<PermissionStatus> _getContactPermission() async {
+    PermissionStatus permission = await Permission.contacts.status;
+    if (permission != PermissionStatus.granted &&
+        permission != PermissionStatus.permanentlyDenied) {
+      PermissionStatus permissionStatus = await Permission.contacts.request();
+      return permissionStatus;
+    } else {
+      return permission;
+    }
   }
 }
